@@ -1,5 +1,4 @@
-clc
-clear variables
+InitNate()
 
 a=2+3;
-figure
+a=a+pi
