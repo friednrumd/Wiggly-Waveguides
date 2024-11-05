@@ -8,7 +8,7 @@ addpath('.\Functions')
 addpath('.\DataFiles')
 
 if exist('modedata') == 0
-    modedata = table2array(readtable("C:\Users\natef\OneDrive - University of Maryland\MATLAB\Floquet Research\DataFiles\poopcrosssectionmodes3d.txt"));
+    modedata = table2array(readtable("C:\Users\natef\OneDrive - University of Maryland\MATLAB\Floquet Research\DataFiles\poorcrosssectionmodes3d.txt"));
 
     i=1;
     while modedata(i,1)==modedata(1,1)
