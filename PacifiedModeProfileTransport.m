@@ -2,48 +2,17 @@
 
 clc
 close all
-clearvars -except modedata
+clearvars -except rawdata
 
 addpath('.\Functions')
 addpath('.\DataFiles')
 
-if exist('modedata') == 0
-    modedata = table2array(readtable("C:\Users\natef\OneDrive - University of Maryland\MATLAB\Floquet Research\DataFiles\poorcrosssectionmodes3d.txt"));
+if exist('modedata','var') == 0
+    rawdata = table2array(readtable("C:\Users\natef\OneDrive - University of Maryland\MATLAB\Floquet Research\DataFiles\poorcrosssectionmodes3d.txt"));
+    n0=[3.437208 3.408583 3.360361 3.291731 3.201465 3.087806 2.948290 2.779468 2.576498 2.332719 2.040777 1.713245];
 
-    i=1;
-    while modedata(i,1)==modedata(1,1)
-        i=i+1;
-    end
-    N(1)=i-1;
-    
-    if rem(size(modedata,1),N(1))==0
-        N(2)=size(modedata,1)/N(1);
-    else
-        fprintf('Ny \n');
-        scream()
-        return
-    end
-
-    nmodes=round((size(modedata(1,:),2)-2)/3,1);
-    N(3)=N(1)*N(2);
-    
-    ModeData=zeros(nmodes,N(1),N(2));
-
-    for j=1:nmodes
-        ModeData(j,1:N(1),1:N(2))=reshape(modedata(:,2+j),[N(1),N(2)]);
-    end
-
-    Ex0=zeros(N(1),N(2),nmodes);
-    Ey0=zeros(N(1),N(2),nmodes);
-    Ez0=zeros(N(1),N(2),nmodes);
-    for i=1:nmodes
-        Ex0(:,nmodes)=modedata(:,3*i);
-        Ey0(:,nmodes)=modedata(:,3*i+1);
-        Ez0(:,nmodes)=modedata(:,3*i+2);
-    end
 end
 
-n0=[3.437208 3.408583 3.360361 3.291731 3.201465 3.087806 2.948290 2.779468 2.576498 2.332719 2.040777 1.713245];
 
 
 %% Settings
@@ -71,21 +40,51 @@ eclad=nclad^2;
 w0=corewidth/2;
 dw=dwTotal./10.^(divs);
 
-dA=(xVals(N(1)+1,1)-xVals(1,1))*(xVals(2,2)-xVals(1,2));
+i=1;
+while rawdata(i,1)==rawdata(1,1)
+    i=i+1;
+end
+Nx=i-1;
+Nxy=size(rawdata,1);
 
-coref=(heaviside(xVals(:,1)'+corewidth/2)-heaviside(xVals(:,1)'-corewidth/2)).*(heaviside(xVals(:,2)+cladwidth/2)-heaviside(xVals(:,2)-cladwidth/2));
+if rem(Nxy,Nx)==0
+    Ny=Nxy/Nx;
+else
+    fprintf('Ny \n');
+    scream()
+    return
+end
+
+nmodes=round((size(rawdata(1,:),2)-2)/3,1);
+Nxy=Nx*Ny;
+
+xVals=rawdata(:,1);
+yVals=rawdata(:,2);
+
+E0=zeros(Nxy,3,nmodes);
+for i=1:nmodes
+    E0(:,1,i)=rawdata(:,3*i);
+    E0(:,2,i)=rawdata(:,3*i+1);
+    E0(:,3,i)=rawdata(:,3*i+2);
+end
+
+coref=(heaviside(xVals+corewidth/2)-heaviside(xVals-corewidth/2)).*(heaviside(yVals+cladwidth/2)-heaviside(yVals-cladwidth/2));
+dA=(xVals(Nx+1)-xVals(1))*(yVals(2)-yVals(1));
 
 H0=zeros(nmodes,nmodes);
 for i=1:nmodes
-    for j=1:nmodes
-        H0=( (Ex0(:,:))'*coref*Ex0(:,:)+(Ey0(:,:))'*coref*Ey0(:,:)+(Ez0(:,:))'*coref*Ez0(:,:) )*dA;
+    H0(i,i)=sum((E0(:,:,i)')*(coref.*E0(:,:,i)),"all")*dA;
+    for j=i+1:nmodes
+        H0(i,j)=sum((E0(:,:,i)')*(coref.*E0(:,:,j)),"all")*dA;
+        H0(j,i)=H0(i,j);
     end
 end
+
 
 S0=zeros(nmodes,nmodes);
 
 
-imagesc(1:nmodes,1:nmodes,log(abs(H0)))
+imagesc(1:nmodes,1:nmodes,(abs(H0)))
 colorbar
 colormap('jet')
 axis xy
