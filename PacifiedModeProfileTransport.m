@@ -17,7 +17,7 @@ if exist('rawmodes','var') == 0
     rawmodes = readmatrix("ModeProfile3DProfile.txt");
     rawfoms = readmatrix("ModeProfileFOMRestricted.txt");
     xy=rawmodes(:,1:2)/ell;
-    dA=rawmodes(:,3)*10^12/ell^2;
+    dA=rawmodes(:,3)/ell^2;
 
     N       =size(rawmodes  ,1);
     nmodes  =size(rawfoms,1);
@@ -26,8 +26,8 @@ if exist('rawmodes','var') == 0
     psi0=zeros(N,3,2,nmodes);
     for i=1:nmodes
         for j=1:3
-            psi0(:,j,1,i)=  rawmodes(:,1+6*(i-1)+(j-1)+3)/eps_const/10^12;
-            psi0(:,j,2,i)=  rawmodes(:,1+6*(i-1)+(j-1)+6)/eps_const/10^12*c_const;
+            psi0(:,j,1,i)=  rawmodes(:,1+6*(i-1)+(j-1)+3);
+            psi0(:,j,2,i)=  rawmodes(:,1+6*(i-1)+(j-1)+6)*c_const;
         end
     end
 end
@@ -70,15 +70,62 @@ psi0=psi0(:,:,:,MODES);
 S0=zeros(nmodes,nmodes);
 H0=zeros(nmodes,nmodes);
 for i=1:nmodes
-    S0(i,i)=      S_Metric(psi0(:,:,:,i),psi0(:,:,:,i),dA);
-    H0(i,i)=    H_Operator(psi0(:,:,:,i),psi0(:,:,:,i),dA,eps);
+    % S0(i,i)=      S_Metric(psi0(:,:,:,i),psi0(:,:,:,i),dA);
+    % H0(i,i)=    H_Operator(psi0(:,:,:,i),psi0(:,:,:,i),dA,eps);
 
-    for j=i+1:nmodes
+    for j=1:nmodes
         S0(i,j)=  S_Metric(psi0(:,:,:,i),psi0(:,:,:,j),dA);
-        S0(j,i)=  S_Metric(psi0(:,:,:,j),psi0(:,:,:,i),dA);
+        % S0(j,i)=  S_Metric(psi0(:,:,:,j),psi0(:,:,:,i),dA);
 
-        H0(i,j)=H_Operator(psi0(:,:,:,i),psi0(:,:,:,j),dA);
-        H0(j,i)=H_Operator(psi0(:,:,:,j),psi0(:,:,:,i),dA);
+        H0(i,j)=H_Operator(psi0(:,:,:,i),psi0(:,:,:,j),dA,eps);
+        % H0(j,i)=H_Operator(psi0(:,:,:,j),psi0(:,:,:,i),dA,eps);
+    end
+end
+
+figure;
+subplot(1,2,1)
+imagesc(MODES,MODES,log10(abs(S0(MODES,MODES))))
+colorbar
+colormap("gray")
+axis xy
+title('Arg')
+subplot(1,2,2)
+imagesc(MODES,MODES,(angle(S0(MODES,MODES))))
+colorbar
+colormap("gray")
+axis xy
+title('Ang')
+sgtitle('S0')
+
+figure
+subplot(1,2,1)
+imagesc(MODES,MODES,log10(abs(H0(MODES,MODES))))
+colorbar
+colormap("gray")
+axis xy
+title('Arg')
+subplot(1,2,2)
+imagesc(MODES,MODES,(angle(H0(MODES,MODES))))
+colorbar
+colormap("gray")
+axis xy
+title('Ang')
+sgtitle('H0')
+
+
+q1=abs(S0);
+% Normalize
+for i=1:nmodes
+    % S0(i,i)=    S0(i,i)/sqrt(abs(S0(i,i)*S0(i,i)));
+    % H0(i,i)=    H0(i,i)/sqrt(abs(S0(i,i)*S0(i,i)));
+    %psi0(:,:,:,i)=psi0(:,:,:,i)/sqrt(S0(i,i));
+
+    for j=1:nmodes
+        S0(i,j)=S0(i,j)/sqrt(abs(S0(i,i)*S0(j,j)));
+        % S0(j,i)=S0(j,i)/sqrt(abs(S0(i,i)*S0(j,j)));
+
+        H0(i,j)=H0(i,j)/sqrt(abs(S0(i,i)*S0(j,j)));
+        % H0(j,i)=H0(j,i)/sqrt(abs(S0(i,i)*S0(j,j)));
     end
 end
 
@@ -95,24 +142,22 @@ colorbar
 colormap("gray")
 axis xy
 title('Ang')
-sgtitle('S0')
+sgtitle('S0 Normalized')
 
-
-q1=abs(S0);
-% Normalize
-for i=1:nmodes
-    S0(i,i)=    1;
-    H0(i,i)=    H0(i,i)/sqrt(S0(i,i)*S0(i,i));
-    psi0(:,:,:,i)=psi0(:,:,:,i)/sqrt(S0(i,i));
-
-    for j=i+1:nmodes
-        S0(i,j)=S0(i,j)/sqrt(S0(i,i)*S0(j,j));
-        S0(j,i)=S0(j,i)/sqrt(S0(i,i)*S0(j,j));
-
-        H0(i,j)=H0(i,j)/sqrt(H0(i,i)*H0(j,j));
-        H0(j,i)=H0(j,i)/sqrt(H0(i,i)*H0(j,j));
-    end
-end
+figure
+subplot(1,2,1)
+imagesc(MODES,MODES,log10(abs(H0(MODES,MODES))))
+colorbar
+colormap("gray")
+axis xy
+title('Arg')
+subplot(1,2,2)
+imagesc(MODES,MODES,(angle(H0(MODES,MODES))))
+colorbar
+colormap("gray")
+axis xy
+title('Ang')
+sgtitle('H0 Normalized')
 
 
 
