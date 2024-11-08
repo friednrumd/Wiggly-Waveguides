@@ -62,6 +62,7 @@ w0=corewidth/2;
 dw=dwTotal./10.^(divs);
 
 coref= @(r) (ecore-eclad)*(heaviside(r(:,1)+w0)-heaviside(r(:,1)-w0)).*(heaviside(r(:,2)+coreheight/2)-heaviside(r(:,2)-coreheight/2))+eclad;
+eps=coref(xy);
 
 nmodes=length(MODES);
 psi0=psi0(:,:,:,MODES);
@@ -69,93 +70,50 @@ psi0=psi0(:,:,:,MODES);
 S0=zeros(nmodes,nmodes);
 H0=zeros(nmodes,nmodes);
 for i=1:nmodes
-    S0(i,i)=    S_Metric(psi0(:,:,:,i),psi0(:,:,:,i),dA);
-    H0(i,i)=    conjS_Metric(psi0(:,:,:,i),psi0(:,:,:,i),dA);
+    S0(i,i)=      S_Metric(psi0(:,:,:,i),psi0(:,:,:,i),dA);
+    H0(i,i)=    H_Operator(psi0(:,:,:,i),psi0(:,:,:,i),dA,eps);
 
     for j=i+1:nmodes
-        S0(i,j)=S_Metric(psi0(:,:,:,i),psi0(:,:,:,j),dA);
-        S0(j,i)=S0(i,j);
+        S0(i,j)=  S_Metric(psi0(:,:,:,i),psi0(:,:,:,j),dA);
+        S0(j,i)=  S_Metric(psi0(:,:,:,j),psi0(:,:,:,i),dA);
 
-        H0(i,j)=conjS_Metric(psi0(:,:,:,i),psi0(:,:,:,j),dA);
-        H0(j,i)=H0(i,j);
+        H0(i,j)=H_Operator(psi0(:,:,:,i),psi0(:,:,:,j),dA);
+        H0(j,i)=H_Operator(psi0(:,:,:,j),psi0(:,:,:,i),dA);
     end
 end
 
 figure
+subplot(1,2,1)
 imagesc(MODES,MODES,log10(abs(S0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title('S0 Arg')
-
-
-figure
-imagesc(MODES,MODES,log10(abs(H0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title('H0 Arg')
-
-figure
+title('Arg')
+subplot(1,2,2)
 imagesc(MODES,MODES,(angle(S0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title(' S0 angle')
+title('Ang')
+sgtitle('S0')
 
-figure
-imagesc(MODES,MODES,(angle(H0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title(' H0 angle')
-q2=abs(S0);
 
 q1=abs(S0);
 % Normalize
 for i=1:nmodes
     S0(i,i)=    1;
-    H0(i,i)=    1;
+    H0(i,i)=    H0(i,i)/sqrt(S0(i,i)*S0(i,i));
     psi0(:,:,:,i)=psi0(:,:,:,i)/sqrt(S0(i,i));
 
     for j=i+1:nmodes
         S0(i,j)=S0(i,j)/sqrt(S0(i,i)*S0(j,j));
-        S0(j,i)=S0(i,j);
+        S0(j,i)=S0(j,i)/sqrt(S0(i,i)*S0(j,j));
 
         H0(i,j)=H0(i,j)/sqrt(H0(i,i)*H0(j,j));
-        H0(j,i)=H0(i,j);
+        H0(j,i)=H0(j,i)/sqrt(H0(i,i)*H0(j,j));
     end
 end
 
-figure
-imagesc(MODES,MODES,log10(abs(S0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title('Normalized S0 Arg')
-
-figure
-imagesc(MODES,MODES,log10(abs(H0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title('Normalized H0 Arg')
-q2=abs(S0);
-
-figure
-imagesc(MODES,MODES,(angle(S0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title('Normalized S0 angle')
-
-figure
-imagesc(MODES,MODES,(angle(H0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title('Normalized H0 angle')
-q2=abs(S0);
 
 
 %% Running
