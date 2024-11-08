@@ -17,7 +17,7 @@ if exist('rawmodes','var') == 0
     rawmodes = readmatrix("ModeProfile3DProfile.txt");
     rawfoms = readmatrix("ModeProfileFOMRestricted.txt");
     xy=rawmodes(:,1:2)/ell;
-    dA=rawmodes(:,3)/ell^2;
+    dA=rawmodes(:,3)/ell^2*10^12;
 
     N       =size(rawmodes  ,1);
     nmodes  =size(rawfoms,1);
@@ -26,8 +26,8 @@ if exist('rawmodes','var') == 0
     psi0=zeros(N,3,2,nmodes);
     for i=1:nmodes
         for j=1:3
-            psi0(:,j,1,i)=  rawmodes(:,1+6*(i-1)+(j-1)+3);
-            psi0(:,j,2,i)=  rawmodes(:,1+6*(i-1)+(j-1)+6)*c_const;
+            psi0(:,j,1,i)=  rawmodes(:,1+6*(i-1)+(j-1)+3)*10^6*eps_const;
+            psi0(:,j,2,i)=  rawmodes(:,1+6*(i-1)+(j-1)+6)*10^6*eps_const*c_const;
         end
     end
 end
@@ -44,8 +44,8 @@ MODES=1:5;
 
 
 %% Parameters
-ncore=2.03-0.1*1i;
-nclad=1.46-0.05*1i;
+ncore=2.03;%-0.1*1i;
+nclad=1.46;%-0.05*1i;
 
 corewidth=3.000     /ell;
 cladwidth=9.000     /ell;
@@ -74,7 +74,7 @@ for i=1:nmodes
     % H0(i,i)=    H_Operator(psi0(:,:,:,i),psi0(:,:,:,i),dA,eps);
 
     for j=1:nmodes
-        S0(i,j)=  S_Metric(psi0(:,:,:,i),psi0(:,:,:,j),dA);
+        S0(i,j)=  S_Metric(psi0(:,:,:,i),psi0(:,:,:,j),dA    );
         % S0(j,i)=  S_Metric(psi0(:,:,:,j),psi0(:,:,:,i),dA);
 
         H0(i,j)=H_Operator(psi0(:,:,:,i),psi0(:,:,:,j),dA,eps);
@@ -88,14 +88,15 @@ imagesc(MODES,MODES,log10(abs(S0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title('Arg')
+title('Abs')
 subplot(1,2,2)
-imagesc(MODES,MODES,(angle(S0(MODES,MODES))))
+imagesc(MODES,MODES,     (angle(S0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title('Ang')
+title('Arg')
 sgtitle('S0')
+
 
 figure
 subplot(1,2,1)
@@ -103,13 +104,13 @@ imagesc(MODES,MODES,log10(abs(H0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title('Arg')
+title('Abs')
 subplot(1,2,2)
-imagesc(MODES,MODES,(angle(H0(MODES,MODES))))
+imagesc(MODES,MODES,     (angle(H0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title('Ang')
+title('Arg')
 sgtitle('H0')
 
 
@@ -135,14 +136,15 @@ imagesc(MODES,MODES,log10(abs(S0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title('Arg')
+title('Abs')
 subplot(1,2,2)
-imagesc(MODES,MODES,(angle(S0(MODES,MODES))))
+imagesc(MODES,MODES,     (angle(S0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title('Ang')
+title('Arg')
 sgtitle('S0 Normalized')
+
 
 figure
 subplot(1,2,1)
@@ -150,13 +152,13 @@ imagesc(MODES,MODES,log10(abs(H0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title('Arg')
+title('Abs')
 subplot(1,2,2)
-imagesc(MODES,MODES,(angle(H0(MODES,MODES))))
+imagesc(MODES,MODES,     (angle(H0(MODES,MODES))))
 colorbar
 colormap("gray")
 axis xy
-title('Ang')
+title('Arg')
 sgtitle('H0 Normalized')
 
 
