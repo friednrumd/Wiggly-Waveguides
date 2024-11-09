@@ -87,27 +87,27 @@ end
 %% Integrals
 
 S0=zeros(nmodes,nmodes);
-H0=zeros(nmodes,nmodes);
 T0=zeros(nmodes,nmodes);
+V0=zeros(nmodes,nmodes);
 
 for i=1:nmodes
-    S0(i,i)=S_Metric(psi(:,:,:,i),psi(:,:,:,i),dA);
-    H0(i,i)=H_Operator(psi(:,:,:,i),psi(:,:,:,i),dA,eps);
-    T0(i,i)=1/2*( ( psi(:,3,1,i) )'*(dA.*eps.*psi(:,3,1,i))+( psi(:,3,2,i) )'*( dA.*psi(:,3,2,i)) );
+    S0(i,i)=S_Metric(conj(psi(:,:,:,i)),psi(:,:,:,i),dA);
+    T0(i,i)=Tz_Operator(conj(psi(:,:,:,i)),psi(:,:,:,i),dA,eps);
+    V0(i,i)=V_Operator(conj(psi(:,:,:,i)),psi(:,:,:,i),dA,eps);
 
     for j=(1+i):nmodes
-        S0(i,j)=S_Metric(psi(:,:,:,i),psi(:,:,:,j),dA);
-        H0(i,j)=H_Operator(psi(:,:,:,i),psi(:,:,:,j),dA,eps);
-        T0(i,j)=1/2*( ( psi(:,3,1,i) )'*(dA.*eps.*psi(:,3,1,j))+( psi(:,3,2,i) )'*( dA.*psi(:,3,2,j)) );
+        S0(i,j)=S_Metric(conj(psi(:,:,:,i)),psi(:,:,:,j),dA);
+        T0(i,j)=Tz_Operator(conj(psi(:,:,:,i)),psi(:,:,:,j),dA,eps);
+        V0(i,j)=V_Operator(conj(psi(:,:,:,i)),psi(:,:,:,j),dA,eps);
 
-        S0(j,i)=(S0(i,j));
-        H0(j,i)=(H0(i,j));
-        T0(j,i)=(T0(i,j));
+        S0(j,i)=conj(S0(i,j));
+        T0(j,i)=conj(T0(i,j));
+        V0(j,i)=conj(V0(i,j));
 
     end
 end
 
-V0=H0-T0;
+H0=T0+V0;
 
 
 %% Coefficient Matrices
