@@ -2,7 +2,7 @@
 
 clc
 close all
-clearvars -except rawmodes rawfoms xy dA psi0 N nmodes
+clearvars -except rawmodes rawfoms xy dA psi0 N nmodes n0 eps
 
 addpath('C:\Users\natef\OneDrive - University of Maryland\MATLAB\DataFiles')
 addpath('.\Functions')
@@ -14,22 +14,33 @@ eps_const=1/(c_const^2*mu_const);
 ell=1.55/2/pi;                      %length unit
 
 if exist('rawmodes','var') == 0
-    rawmodes = readmatrix("ModeProfile3DProfile.txt");
-    rawfoms = readmatrix("ModeProfileFOMRestricted.txt");
-    xy=rawmodes(:,1:2)/ell;
-    dA=rawmodes(:,3)/ell^2*10^12;
+    rawmodes    = readmatrix("ModeProfile3DProfileScaled.txt");
+
+    rawfoms     = readmatrix("ModeProfileFOMRestricted.txt");
+
+    xy=rawmodes(:,3:4);
+    dA=rawmodes(:,6);
+    eps=rawmodes(:,7);
 
     N       =size(rawmodes  ,1);
     nmodes  =size(rawfoms,1);
-    n0      =rawfoms(:,1);
+    
+    INVERT=0;
 
     psi0=zeros(N,3,2,nmodes);
+
     for i=1:nmodes
-        for j=1:3
-            psi0(:,j,1,i)=  rawmodes(:,1+6*(i-1)+(j-1)+3)*10^6*eps_const;
-            psi0(:,j,2,i)=  rawmodes(:,1+6*(i-1)+(j-1)+6)*10^6*eps_const*c_const;
+        for j=1:2
+            psi0(:,j,1,i)=  rawmodes(:,2+11*(i-1)+j-1+6)/sqrt((rawfoms(i,end)));
+            psi0(:,j,2,i)=  (-1)^INVERT*rawmodes(:,2+11*(i-1)+j-1+9)/sqrt((rawfoms(i,end)));
         end
+            psi0(:,3,1,i)=  (-1)^INVERT*rawmodes(:,2+11*(i-1)+3-1+6)/sqrt((rawfoms(i,end)));
+            psi0(:,3,2,i)=  rawmodes(:,2+11*(i-1)+3-1+9)/sqrt((rawfoms(i,end)));
     end
+
+    psi0=flip(psi0,4);
+    rawfoms=flip(rawfoms,1);
+    n0      =rawfoms(:,3);
 end
 
 FOMs=["nc", "Complex Index", "Real Index", "Imag Index", "Core Power", "Clad Power", "PML Power", "Sub Power", "Air Power", "Total Power", "Core S", "Clad S", "PML S", "Sub g", "Air S", "Total S", "Core power fraction", "Ey/Ex (rad)", "TE/TM (rad)", "Total z Power"];
@@ -39,127 +50,105 @@ FOMs=["nc", "Complex Index", "Real Index", "Imag Index", "Core Power", "Clad Pow
 dwTotal=0.100       /ell;  %um
 divs=(1:0.25:4);        %orders of magnitudes of fractions of total change to compute by (dw=dwTotal./10.^divs)
 
-MODES=1:5;
-
+MODES=1:8;
+nmodes=length(MODES);
 
 
 %% Parameters
-ncore=2.03;%-0.1*1i;
-nclad=1.46;%-0.05*1i;
+ecore=2.1482;
+eclad=3.9851;
+
 
 corewidth=3.000     /ell;
-cladwidth=9.000     /ell;
-
 coreheight=0.400    /ell;
-cladheight=3.000    /ell;
+
+cladwidth=18.000     /ell;
+cladheight=(3.55+2)     /ell;
+
+pmlt=2*1.55 /ell;
+
+Atotal=(2*pmlt+cladheight)*(2*pmlt+cladwidth);
 
 %% Preparations
-
-ecore=ncore^2;
-eclad=nclad^2;
 
 w0=corewidth/2;
 dw=dwTotal./10.^(divs);
 
-coref= @(r) (ecore-eclad)*(heaviside(r(:,1)+w0)-heaviside(r(:,1)-w0)).*(heaviside(r(:,2)+coreheight/2)-heaviside(r(:,2)-coreheight/2))+eclad;
-eps=coref(xy);
-
-nmodes=length(MODES);
 psi0=psi0(:,:,:,MODES);
+
+%% Normalization
+
+psi=zeros(N,3,2,nmodes);
+for i=1:nmodes
+    psi(:,:,:,i)=psi0(:,:,:,i)/sqrt(conjS_Metric(psi0(:,:,:,i),psi0(:,:,:,i),dA));
+end
+
+
+%% Integrals
 
 S0=zeros(nmodes,nmodes);
 H0=zeros(nmodes,nmodes);
+T0=zeros(nmodes,nmodes);
+
 for i=1:nmodes
-    % S0(i,i)=      S_Metric(psi0(:,:,:,i),psi0(:,:,:,i),dA);
-    % H0(i,i)=    H_Operator(psi0(:,:,:,i),psi0(:,:,:,i),dA,eps);
+    S0(i,i)=S_Metric(psi(:,:,:,i),psi(:,:,:,i),dA);
+    H0(i,i)=H_Operator(psi(:,:,:,i),psi(:,:,:,i),dA,eps);
+    T0(i,i)=1/2*( ( psi(:,3,1,i) )'*(dA.*eps.*psi(:,3,1,i))+( psi(:,3,2,i) )'*( dA.*psi(:,3,2,i)) );
 
-    for j=1:nmodes
-        S0(i,j)=  S_Metric(psi0(:,:,:,i),psi0(:,:,:,j),dA    );
-        % S0(j,i)=  S_Metric(psi0(:,:,:,j),psi0(:,:,:,i),dA);
+    for j=(1+i):nmodes
+        S0(i,j)=S_Metric(psi(:,:,:,i),psi(:,:,:,j),dA);
+        H0(i,j)=H_Operator(psi(:,:,:,i),psi(:,:,:,j),dA,eps);
+        T0(i,j)=1/2*( ( psi(:,3,1,i) )'*(dA.*eps.*psi(:,3,1,j))+( psi(:,3,2,i) )'*( dA.*psi(:,3,2,j)) );
 
-        H0(i,j)=H_Operator(psi0(:,:,:,i),psi0(:,:,:,j),dA,eps);
-        % H0(j,i)=H_Operator(psi0(:,:,:,j),psi0(:,:,:,i),dA,eps);
+        S0(j,i)=(S0(i,j));
+        H0(j,i)=(H0(i,j));
+        T0(j,i)=(T0(i,j));
+
     end
 end
 
-figure;
-subplot(1,2,1)
-imagesc(MODES,MODES,log10(abs(S0(MODES,MODES))))
+V0=H0-T0;
+
+
+%% Coefficient Matrices
+cmap=readmatrix('RedBlueColormap.txt');
+
+figure
+imagesc(MODES,MODES,real(S0))
 colorbar
-colormap("gray")
+colormap(cmap)
 axis xy
-title('Abs')
-subplot(1,2,2)
-imagesc(MODES,MODES,     (angle(S0(MODES,MODES))))
+title('S0')
+clim([-2,2])
+
+figure
+imagesc(MODES,MODES,real(H0))
 colorbar
-colormap("gray")
+colormap(cmap)
 axis xy
-title('Arg')
-sgtitle('S0')
+title('H0')
+clim([-2,2])
 
 
 figure
-subplot(1,2,1)
-imagesc(MODES,MODES,log10(abs(H0(MODES,MODES))))
+imagesc(MODES,MODES,real(T0))
 colorbar
-colormap("gray")
+colormap(cmap)
 axis xy
-title('Abs')
-subplot(1,2,2)
-imagesc(MODES,MODES,     (angle(H0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title('Arg')
-sgtitle('H0')
-
-
-q1=abs(S0);
-% Normalize
-for i=1:nmodes
-    % S0(i,i)=    S0(i,i)/sqrt(abs(S0(i,i)*S0(i,i)));
-    % H0(i,i)=    H0(i,i)/sqrt(abs(S0(i,i)*S0(i,i)));
-    %psi0(:,:,:,i)=psi0(:,:,:,i)/sqrt(S0(i,i));
-
-    for j=1:nmodes
-        S0(i,j)=S0(i,j)/sqrt(abs(S0(i,i)*S0(j,j)));
-        % S0(j,i)=S0(j,i)/sqrt(abs(S0(i,i)*S0(j,j)));
-
-        H0(i,j)=H0(i,j)/sqrt(abs(S0(i,i)*S0(j,j)));
-        % H0(j,i)=H0(j,i)/sqrt(abs(S0(i,i)*S0(j,j)));
-    end
-end
-
-figure
-subplot(1,2,1)
-imagesc(MODES,MODES,log10(abs(S0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title('Abs')
-subplot(1,2,2)
-imagesc(MODES,MODES,     (angle(S0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title('Arg')
-sgtitle('S0 Normalized')
+title('T0')
+clim([-2,2])
 
 
 figure
-subplot(1,2,1)
-imagesc(MODES,MODES,log10(abs(H0(MODES,MODES))))
+imagesc(MODES,MODES,real(V0))
 colorbar
-colormap("gray")
+colormap(cmap)
 axis xy
-title('Abs')
-subplot(1,2,2)
-imagesc(MODES,MODES,     (angle(H0(MODES,MODES))))
-colorbar
-colormap("gray")
-axis xy
-title('Arg')
-sgtitle('H0 Normalized')
+title('V0')
+clim([-2,2])
+
+
+
 
 
 
@@ -221,7 +210,7 @@ sgtitle('Real Mode Fields')
 figure
 for m=1:3
     subplot(2,3,m)
-    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*real(psi0(:,m,1,mode1)))
+    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*imag(psi0(:,m,1,mode1)))
     colorbar
     title(fields(m))
     xlabel('x (\mum)')
@@ -229,7 +218,7 @@ for m=1:3
 
 
     subplot(2,3,m+3)
-    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*real(psi0(:,m,2,mode1)))
+    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*imag(psi0(:,m,2,mode1)))
 
     colorbar
     title(fields(m+3))
@@ -242,7 +231,7 @@ sgtitle('Imag Mode Fields')
 %% Particular Mode Field
 
 figure
-scatter(xy(:,1),xy(:,2),area*dA,area*dA.*imag(psi0(:,2,1,mode1)))
+scatter(xy(:,1),xy(:,2),area*dA,abs(psi0(:,3,2,5)))
 colorbar
 title(['Mode' num2str(mode1)])
 xlabel('x (\mum)')
@@ -258,6 +247,35 @@ for i=3:(size(rawfoms,2))
     xlabel('Mode #')
 
 end
+
+
+
+
+
+% 
+%  %% colormap
+% radius=50;
+% 
+% cmap=zeros(3,2*radius+1);
+% cmap(:,radius+1)=[1; 1; 1];
+% 
+% for i=1:radius
+%     cmap(:,radius+1-i)=[1 1-(i)/radius 1-(i)/radius ];
+%     cmap(:,radius+1+i)=[1-(i)/radius, 1-(i)/radius, 1];
+% end
+% 
+% fprintf(fopen('RedBlueColormap.txt','w'),'%i %i %i \n',flip(cmap));
+% 
+% %% read
+% clc
+% clear variables
+% 
+% 
+% q=readmatrix('RedBlueColormap.txt');
+
+
+
+
 
 
 
