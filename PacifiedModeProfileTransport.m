@@ -168,9 +168,10 @@ ylabel('k')
 
 
 
-%% Running
+%% Transport
+
 %for d=divs
-dwTotal=-1*abs(dwTotal);
+dwTotal=1*abs(dwTotal);
 dd=100000;
 ws=w0:dwTotal/dd:(w0+dwTotal);
 figure
@@ -197,15 +198,22 @@ for w=ws
         fprintf('w=%1.3f which is %i percent done\n',ws(cw)*ell, ceil(100*cw/length(ws)))
     end
 
-    for i=1:nmodes
-        nr(i,cw+1)=nr(i,cw)+(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,i,cw))*dwTotal/dd;
-        nur(i,i,cw+1)=nur(i,i,cw);
 
-        for j=i+1:nmodes
-            nur(i,j,cw+1)=nur(i,j,cw)-1/(nr(i,cw)-nr(j,cw))*(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,j,cw))*dwTotal/dd;
-            nur(j,i,cw+1)=-nur(i,j,cw);
-        end
-    end
+    Hr=(nur(:,:,cw).')*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,:,cw));
+    gammar=(1-eye(nmodes))./(nr(:,cw)-nr(:,cw)'+10^-20).*Hr;
+
+    nr(:,cw+1)=nr(:,cw)+diag(Hr)*dwTotal/dd;
+    nur(:,:,cw+1)=(eye(nmodes)-gammar*dwTotal/dd)*nur(:,:,cw);
+
+    % for i=1:nmodes
+    %     nr(i,cw+1)=nr(i,cw)+(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,i,cw))*dwTotal/dd;
+    %     nur(i,i,cw+1)=nur(i,i,cw);
+    % 
+    %     for j=i+1:nmodes
+    %         nur(i,j,cw+1)=nur(i,j,cw)-1/(nr(i,cw)-nr(j,cw))*(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,j,cw))*dwTotal/dd;
+    %         nur(j,i,cw+1)=-nur(i,j,cw);
+    %     end
+    % end
 
 end
 ws=[ws w+dwTotal/dd];
@@ -215,10 +223,14 @@ ws=[ws w+dwTotal/dd];
 %end
 %% Indices Plot
 
+shortl=cw;
 figure
+semilogy(ws(1:shortl)*ell-w0*ell,abs(nr(1,1:shortl)-nr(end,1:shortl)),'LineWidth',2)
+xlabel('\Deltaw (\mum)')
+ylabel('n-n_{min}')
 hold on
-for i=1:nmodes
-    plot(1:400,abs(nr(i,1:400)),'LineWidth',2)
+for i=2:nmodes
+    semilogy(ws(1:shortl)*ell-w0*ell,abs(nr(i,1:shortl)-nr(end,1:shortl)),'LineWidth',2)
 end
 
 
