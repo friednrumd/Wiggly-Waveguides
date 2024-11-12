@@ -2,7 +2,7 @@
 
 clc
 close all
-clearvars -except rawmodes rawfoms xy dA psi0 N nmodes n0 eps
+clearvars -except rawmodes rawfoms xy dA Psi_Init N nmodes n0 eps
 
 addpath('C:\Users\natef\OneDrive - University of Maryland\MATLAB\DataFiles')
 addpath('.\Functions')
@@ -14,9 +14,10 @@ eps_const=1/(c_const^2*mu_const);
 ell=1.55/2/pi;                      %length unit
 
 if exist('rawmodes','var') == 0
-    rawmodes    = readmatrix("ModeProfile3DProfileScaled.txt");
 
-    rawfoms     = readmatrix("ModeProfileFOMRestricted.txt");
+    rawmodes    = readmatrix("ModeProfile2DdataNorm.txt");
+    rawfoms     = readmatrix("ModeProfileFOMs.txt");
+    rawintegrals     = readmatrix("ModeProfileFOMs.txt");
 
     xy=rawmodes(:,3:4);
     dA=rawmodes(:,6);
@@ -27,37 +28,35 @@ if exist('rawmodes','var') == 0
     
     INVERT=0;
 
-    psi0=zeros(N,3,2,nmodes);
+    Psi_Init=zeros(N,3,2,nmodes);
 
     for i=1:nmodes
         for j=1:2
-            psi0(:,j,1,i)=  rawmodes(:,2+11*(i-1)+j-1+6)/sqrt((rawfoms(i,end)));
-            psi0(:,j,2,i)=  (-1)^INVERT*rawmodes(:,2+11*(i-1)+j-1+9)/sqrt((rawfoms(i,end)));
+            Psi_Init(:,j,1,i)=              rawmodes(:,2+12*(i-1)+(j-1)+7)*1i;
+            Psi_Init(:,j,2,i)=  (-1)^INVERT*rawmodes(:,2+12*(i-1)+(j-1)+10)*1i;
         end
-            psi0(:,3,1,i)=  (-1)^INVERT*rawmodes(:,2+11*(i-1)+3-1+6)/sqrt((rawfoms(i,end)));
-            psi0(:,3,2,i)=  rawmodes(:,2+11*(i-1)+3-1+9)/sqrt((rawfoms(i,end)));
+            Psi_Init(:,3,1,i)=  (-1)^INVERT*rawmodes(:,2+12*(i-1)+(3-1)+7)*1i;
+            Psi_Init(:,3,2,i)=              rawmodes(:,2+12*(i-1)+(3-1)+10)*1i;
     end
 
-    psi0=flip(psi0,4);
+    Psi_Init=flip(Psi_Init,4);
     rawfoms=flip(rawfoms,1);
-    n0      =rawfoms(:,3);
+    n0      =rawfoms(:,1);
 end
 
 FOMs=["nc", "Complex Index", "Real Index", "Imag Index", "Core Power", "Clad Power", "PML Power", "Sub Power", "Air Power", "Total Power", "Core S", "Clad S", "PML S", "Sub g", "Air S", "Total S", "Core power fraction", "Ey/Ex (rad)", "TE/TM (rad)", "Total z Power"];
 
 
 %% Settings
-dwTotal=0.100       /ell;  %um
+dwTotal=0.050       /ell;  %um
 divs=(1:0.25:4);        %orders of magnitudes of fractions of total change to compute by (dw=dwTotal./10.^divs)
 
-MODES=1:8;
-nmodes=length(MODES);
+MODES=1:nmodes;
 
 
 %% Parameters
 ecore=2.1482;
 eclad=3.9851;
-
 
 corewidth=3.000     /ell;
 coreheight=0.400    /ell;
@@ -65,53 +64,55 @@ coreheight=0.400    /ell;
 cladwidth=18.000     /ell;
 cladheight=(3.55+2)     /ell;
 
-pmlt=2*1.55 /ell;
-
-Atotal=(2*pmlt+cladheight)*(2*pmlt+cladwidth);
-
 %% Preparations
+
+nmodes=length(MODES);
 
 w0=corewidth/2;
 dw=dwTotal./10.^(divs);
 
-psi0=psi0(:,:,:,MODES);
-
 %% Normalization
 
-psi=zeros(N,3,2,nmodes);
+Psi_0=zeros(N,3,2,nmodes);
 for i=1:nmodes
-    psi(:,:,:,i)=psi0(:,:,:,i)/sqrt(conjS_Metric(psi0(:,:,:,i),psi0(:,:,:,i),dA));
+    Psi_0(:,:,:,i)=Psi_Init(:,:,:,i)/sqrt((S_Metric((Psi_Init(:,:,:,i)),Psi_Init(:,:,:,i),dA)));
 end
-
 
 %% Integrals
 
-S0=zeros(nmodes,nmodes);
-T0=zeros(nmodes,nmodes);
-V0=zeros(nmodes,nmodes);
+S0 =zeros(nmodes,nmodes);
+Hx0=zeros(nmodes,nmodes);
+Hy0=zeros(nmodes,nmodes);
+Hz0=zeros(nmodes,nmodes);
+
 
 for i=1:nmodes
-    S0(i,i)=S_Metric(conj(psi(:,:,:,i)),psi(:,:,:,i),dA);
-    T0(i,i)=Tz_Operator(conj(psi(:,:,:,i)),psi(:,:,:,i),dA,eps);
-    V0(i,i)=V_Operator(conj(psi(:,:,:,i)),psi(:,:,:,i),dA,eps);
+
+     S0(i,i)=  S_Metric((Psi_0(:,:,:,i)),Psi_0(:,:,:,i),dA);
+    Hx0(i,i)=H_Operator((Psi_0(:,:,:,i)),Psi_0(:,:,:,i),dA,eps,1);
+    Hy0(i,i)=H_Operator((Psi_0(:,:,:,i)),Psi_0(:,:,:,i),dA,eps,2);
+    Hz0(i,i)=H_Operator((Psi_0(:,:,:,i)),Psi_0(:,:,:,i),dA,eps,3);
 
     for j=(1+i):nmodes
-        S0(i,j)=S_Metric(conj(psi(:,:,:,i)),psi(:,:,:,j),dA);
-        T0(i,j)=Tz_Operator(conj(psi(:,:,:,i)),psi(:,:,:,j),dA,eps);
-        V0(i,j)=V_Operator(conj(psi(:,:,:,i)),psi(:,:,:,j),dA,eps);
 
-        S0(j,i)=conj(S0(i,j));
-        T0(j,i)=conj(T0(i,j));
-        V0(j,i)=conj(V0(i,j));
+         S0(i,j)=  S_Metric((Psi_0(:,:,:,i)),Psi_0(:,:,:,j),dA);
+        Hx0(i,j)=H_Operator((Psi_0(:,:,:,i)),Psi_0(:,:,:,j),dA,eps,1);
+        Hy0(i,j)=H_Operator((Psi_0(:,:,:,i)),Psi_0(:,:,:,j),dA,eps,2);
+        Hz0(i,j)=H_Operator((Psi_0(:,:,:,i)),Psi_0(:,:,:,j),dA,eps,3);
 
+         S0(j,i)=( S0(i,j));
+        Hx0(j,i)=(Hx0(i,j));
+        Hy0(j,i)=(Hy0(i,j));
+        Hz0(j,i)=(Hz0(i,j));
+        
     end
 end
 
-H0=T0+V0;
-
+H0=Hx0+Hy0+Hz0;
+V0=Hx0+Hy0;
 
 %% Coefficient Matrices
-cmap=readmatrix('RedBlueColormap.txt');
+cmap=readmatrix('Murica.txt');
 
 figure
 imagesc(MODES,MODES,real(S0))
@@ -120,6 +121,31 @@ colormap(cmap)
 axis xy
 title('S0')
 clim([-2,2])
+
+
+% figure
+% imagesc(MODES,MODES,abs(Hx0))
+% colorbar
+% colormap(cmap)
+% axis xy
+% title('Hx0')
+% clim([-2,2])
+% 
+% figure
+% imagesc(MODES,MODES,abs(Hy0))
+% colorbar
+% colormap(cmap)
+% axis xy
+% title('Hy0')
+% clim([-2,2])
+% 
+% figure
+% imagesc(MODES,MODES,abs(Hz0))
+% colorbar
+% colormap(cmap)
+% axis xy
+% title('Hz0')
+% clim([-2,2])
 
 figure
 imagesc(MODES,MODES,real(H0))
@@ -131,21 +157,11 @@ clim([-2,2])
 
 
 figure
-imagesc(MODES,MODES,real(T0))
-colorbar
-colormap(cmap)
-axis xy
-title('T0')
-clim([-2,2])
-
-
-figure
-imagesc(MODES,MODES,real(V0))
-colorbar
-colormap(cmap)
-axis xy
-title('V0')
-clim([-2,2])
+plot(real(n0(MODES)),-imag(n0(MODES)),'r.',real(diag(H0)./diag(S0)),-imag(diag(H0)./diag(S0)),'.b','MarkerSize',20)
+legend('From COMSOL','From Integrals','Location','NorthEast')
+title('n-ik')
+xlabel('n')
+ylabel('k')
 
 
 
@@ -153,64 +169,120 @@ clim([-2,2])
 
 
 %% Running
+%for d=divs
+dwTotal=-1*abs(dwTotal);
+dd=100000;
+ws=w0:dwTotal/dd:(w0+dwTotal);
+figure
+hold on
+colorbar
+colormap(cmap)
+clim([-30,30])
 
-% for d=divs
-%     modalbasisprofiles=zeros(nmodes,nmodes,d);
-%     eigs=zeros(nmodes,d);
-% 
-%     modalbasisprofiles(:,:,1)=eye(nmodes);
-%     eigs(:,1)=n0;
-% 
-%     cw=0;
-%     for w=w0:dWtotal/d:(w0+dwTotal)
-%         cw=cw+1;
-% 
-% 
-%     end
-% 
-% 
+nur   =zeros(nmodes,nmodes,dd);
+nr     =zeros(nmodes,dd);
+
+nur(:,:,1)=eye(nmodes);
+nr(:,1)    =n0;
+
+cw=0;
+for w=ws
+    cw=cw+1;
+
+    if mod(cw,100)==0
+        imagesc(1:nmodes,1:nmodes,10*log10(abs(nur(:,:,cw))))
+        title(['w= ' num2str(ws(cw)*ell)])
+        drawnow
+        clc
+        fprintf('w=%1.3f which is %i percent done\n',ws(cw)*ell, ceil(100*cw/length(ws)))
+    end
+
+    for i=1:nmodes
+        nr(i,cw+1)=nr(i,cw)+(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,i,cw))*dwTotal/dd;
+        nur(i,i,cw+1)=nur(i,i,cw);
+
+        for j=i+1:nmodes
+            nur(i,j,cw+1)=nur(i,j,cw)-1/(nr(i,cw)-nr(j,cw))*(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,j,cw))*dwTotal/dd;
+            nur(j,i,cw+1)=-nur(i,j,cw);
+        end
+    end
+
+end
+ws=[ws w+dwTotal/dd];
+
+
 
 %end
-%% Post Anaylysis
+%% Indices Plot
+
+figure
+hold on
+for i=1:nmodes
+    plot(1:400,abs(nr(i,1:400)),'LineWidth',2)
+end
 
 
-%% DIAGNOSTICS
+%% nu animation
+
+figure
+hold on
+for c=1:50:cw
+    imagesc(1:nmodes,1:nmodes,10*log10(abs(nur(:,:,c))))
+    colorbar
+    colormap(cmap)
+    clim([-30,30])
+    title(['w= ' num2str(ws(c)*ell)])
+    drawnow
+    clc
+    fprintf('w=%1.3f which is %i percent done\n',ws(c)*ell, round(100*c/cw))
+    
+end
 
 
 
 %% Mode Fields
 
 mode1=1;
-mode2=2;
 area=10;
 
-max1=(max(max(max(abs(psi0(:,:,:,mode1))))));
-max2=(max(max(max(abs(psi0(:,:,:,mode2))))));
 
 fields=["E_x"; "E_y"; "E_z"; "B_x"; "B_y"; "B_z"];
 figure
-for m=1:3
+for m=1:2
     subplot(2,3,m)
-    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*real(psi0(:,m,1,mode1)))
+    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*real(Psi_0(:,m,1,mode1)))
     colorbar
     title(fields(m))
     xlabel('x (\mum)')
     ylabel('y (\mum)')
 
     subplot(2,3,m+3)
-    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*real(psi0(:,m,2,mode1)))
+    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*real(Psi_0(:,m,2,mode1)))
     colorbar
     title(fields(m+3))
     xlabel('x (\mum)')
     ylabel('y (\mum)')
 
 end
-sgtitle('Real Mode Fields')
+subplot(2,3,3)
+scatter(xy(:,1),xy(:,2),area*dA,area*dA.*imag(Psi_0(:,3,1,mode1)))
+colorbar
+title(fields(3))
+xlabel('x (\mum)')
+ylabel('y (\mum)')
+
+subplot(2,3,6)
+scatter(xy(:,1),xy(:,2),area*dA,area*dA.*imag(Psi_0(:,3,2,mode1)))
+colorbar
+title(fields(6))
+xlabel('x (\mum)')
+ylabel('y (\mum)')
+sgtitle('Primary Mode Field Components')
 
 figure
 for m=1:3
     subplot(2,3,m)
-    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*imag(psi0(:,m,1,mode1)))
+    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*angle(Psi_0(:,m,1,mode1)))
     colorbar
     title(fields(m))
     xlabel('x (\mum)')
@@ -218,7 +290,7 @@ for m=1:3
 
 
     subplot(2,3,m+3)
-    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*imag(psi0(:,m,2,mode1)))
+    scatter(xy(:,1),xy(:,2),area*dA,area*dA.*angle(Psi_0(:,m,2,mode1)))
 
     colorbar
     title(fields(m+3))
@@ -226,14 +298,15 @@ for m=1:3
     ylabel('y (\mum)')
 
 end
-sgtitle('Imag Mode Fields')
+sgtitle('Mode Field Angles')
 
 %% Particular Mode Field
+mode1=1;
 
 figure
-scatter(xy(:,1),xy(:,2),area*dA,abs(psi0(:,3,2,5)))
+scatter(xy(:,1),xy(:,2),area*dA,real(Psi_0(:,1,1,mode1).*Psi_0(:,2,2,mode1)-Psi_0(:,1,2,mode1).*Psi_0(:,2,1,mode1)))
 colorbar
-title(['Mode' num2str(mode1)])
+title(['Mode' num2str(mode1) 'Power'])
 xlabel('x (\mum)')
 ylabel('y (\mum)')
 
