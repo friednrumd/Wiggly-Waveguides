@@ -48,8 +48,9 @@ FOMs=["nc", "Complex Index", "Real Index", "Imag Index", "Core Power", "Clad Pow
 
 
 %% Settings
-dwTotal=0.050       /ell;  %um
-divs=(1:0.25:4);        %orders of magnitudes of fractions of total change to compute by (dw=dwTotal./10.^divs)
+dwTotal=0.05       /ell;  %um
+divs=(0:0.20:6);        %orders of magnitudes of fractions of total change to compute by (dw=dwTotal./10.^divs)
+divs=round(10.^(divs));
 
 MODES=1:nmodes;
 
@@ -69,7 +70,7 @@ cladheight=(3.55+2)     /ell;
 nmodes=length(MODES);
 
 w0=corewidth/2;
-dw=dwTotal./10.^(divs);
+dw=dwTotal./(divs);
 
 %% Normalization
 
@@ -170,69 +171,92 @@ ylabel('k')
 
 %% Transport
 
-%for d=divs
-dwTotal=1*abs(dwTotal);
-dd=100000;
-ws=w0:dwTotal/dd:(w0+dwTotal);
-figure
-hold on
-colorbar
-colormap(cmap)
-clim([-30,30])
+nurFinal=zeros(nmodes,nmodes,length(divs));
+cd=0;
+for dd=divs
+    cd=cd+1;
 
-nur   =zeros(nmodes,nmodes,dd);
-nr     =zeros(nmodes,dd);
-
-nur(:,:,1)=eye(nmodes);
-nr(:,1)    =n0;
-
-cw=0;
-for w=ws
-    cw=cw+1;
-
-    if mod(cw,100)==0
-        imagesc(1:nmodes,1:nmodes,10*log10(abs(nur(:,:,cw))))
-        title(['w= ' num2str(ws(cw)*ell)])
-        drawnow
-        clc
-        fprintf('w=%1.3f which is %i percent done\n',ws(cw)*ell, ceil(100*cw/length(ws)))
-    end
-
-
-    Hr=(nur(:,:,cw).')*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,:,cw));
-    gammar=(1-eye(nmodes))./(nr(:,cw)-nr(:,cw)'+10^-20).*Hr;
-
-    nr(:,cw+1)=nr(:,cw)+diag(Hr)*dwTotal/dd;
-    nur(:,:,cw+1)=(eye(nmodes)-gammar*dwTotal/dd)*nur(:,:,cw);
-
-    % for i=1:nmodes
-    %     nr(i,cw+1)=nr(i,cw)+(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,i,cw))*dwTotal/dd;
-    %     nur(i,i,cw+1)=nur(i,i,cw);
+    
+    % figure
+    % hold on
+    % colorbar
+    % colormap(cmap)
+    % clim([-30,30])
     % 
-    %     for j=i+1:nmodes
-    %         nur(i,j,cw+1)=nur(i,j,cw)-1/(nr(i,cw)-nr(j,cw))*(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,j,cw))*dwTotal/dd;
-    %         nur(j,i,cw+1)=-nur(i,j,cw);
-    %     end
-    % end
+    nur   =zeros(nmodes,nmodes,dd);
+    nr     =zeros(nmodes,dd);
+    
+    nur(:,:,1)=eye(nmodes);
+    nr(:,1)    =n0;
+    
+    cw=0;
+    for w=ws
+        cw=cw+1;
+    
+        % if mod(cw,100)==0
+        %     imagesc(1:nmodes,1:nmodes,10*log10(abs(nur(:,:,cw))))
+        %     title(['w= ' num2str(ws(cw)*ell)])
+        %     drawnow
+        %     clc
+        %     fprintf('w=%1.3f which is %i percent done\n',ws(cw)*ell, ceil(100*cw/length(ws)))
+        % end
+    
+    
+        Hr=(nur(:,:,cw).')*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,:,cw));
+        gammar=(1-eye(nmodes))./(nr(:,cw)-nr(:,cw)'+10^-20).*Hr;
+    
+        nr(:,cw+1)=nr(:,cw)+diag(Hr)*dw(cd);
+        nur(:,:,cw+1)=(eye(nmodes)-gammar*dw(cd))*nur(:,:,cw);
+    
+        % for i=1:nmodes
+        %     nr(i,cw+1)=nr(i,cw)+(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,i,cw))*dwTotal/dd;
+        %     nur(i,i,cw+1)=nur(i,i,cw);
+        % 
+        %     for j=i+1:nmodes
+        %         nur(i,j,cw+1)=nur(i,j,cw)-1/(nr(i,cw)-nr(j,cw))*(nur(i,:,cw))*(-w^(-2)*(Hz0+Hx0)+Hy0)*(nur(:,j,cw))*dwTotal/dd;
+        %         nur(j,i,cw+1)=-nur(i,j,cw);
+        %     end
+        % end
+    
+    end
+    clc
+    fprintf('dw=%0.4f nm, Delta w=%1.2f um, N= %i, at step %i of %i \n',dw(cd)*ell*1000,dwTotal*ell,dd, cd, length(divs))
+    ws=w0:dw(cd):(w0+dwTotal);
 
+    ws=[ws w+dwTotal/dd];
+    
+    nurFinal(:,:,cd)=nur(:,:,cw+1);
 end
-ws=[ws w+dwTotal/dd];
+
+%% Sumsqr mode profile error
 
 
+errornur=zeros(length(divs)-1,1);
+for k=1:(length(divs)-1)
+    q=(nurFinal(:,:,k)-nurFinal(:,:,end));
+    errornur(k)=trace(q'*q);
+end
+
+loglog(dw(1:(end-1)),4700*(dw(1:(end-1))).^(2.09),'r','LineWidth',2)
+hold on
+loglog(dw(1:(end-1)),errornur,'.b','MarkerSize',20)
+xlabel('dw (\mu m)')
+ylabel('MSE compared with final profile')
+ylim([0,1])
 
 %end
 %% Indices Plot
 
 shortl=cw;
 figure
-semilogy(ws(1:shortl)*ell-w0*ell,abs(nr(1,1:shortl)-nr(end,1:shortl)),'LineWidth',2)
+for i=1:nmodes
+    semilogy(ws(1:shortl)*ell-w0*ell,abs(nr(i,1:shortl)-nr(end,1:shortl)),'LineWidth',2)
+    if i==1
+    hold on
+    end
+end
 xlabel('\Deltaw (\mum)')
 ylabel('n-n_{min}')
-hold on
-for i=2:nmodes
-    semilogy(ws(1:shortl)*ell-w0*ell,abs(nr(i,1:shortl)-nr(end,1:shortl)),'LineWidth',2)
-end
-
 
 %% nu animation
 
@@ -312,7 +336,7 @@ for m=1:3
 end
 sgtitle('Mode Field Angles')
 
-%% Particular Mode Field
+%% Particular Mode Field Plot
 mode1=1;
 
 figure
@@ -332,31 +356,6 @@ for i=3:(size(rawfoms,2))
     xlabel('Mode #')
 
 end
-
-
-
-
-
-% 
-%  %% colormap
-% radius=50;
-% 
-% cmap=zeros(3,2*radius+1);
-% cmap(:,radius+1)=[1; 1; 1];
-% 
-% for i=1:radius
-%     cmap(:,radius+1-i)=[1 1-(i)/radius 1-(i)/radius ];
-%     cmap(:,radius+1+i)=[1-(i)/radius, 1-(i)/radius, 1];
-% end
-% 
-% fprintf(fopen('RedBlueColormap.txt','w'),'%i %i %i \n',flip(cmap));
-% 
-% %% read
-% clc
-% clear variables
-% 
-% 
-% q=readmatrix('RedBlueColormap.txt');
 
 
 
