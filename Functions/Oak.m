@@ -1,4 +1,4 @@
-function [] = scream()
+function [] = Oak()
 
 if rand()>0.5
 
