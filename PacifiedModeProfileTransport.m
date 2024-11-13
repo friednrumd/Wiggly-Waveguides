@@ -211,7 +211,7 @@ for dd=divs
     errornur(cd)=sqrt(sumsqr(abs(nurFinal(:,:,cd)-nurFinal(:,:,1))));
 
     clc
-    fprintf('To transport by Delta w=%1.2f um, via %i steps of %f nm, the RMSE is about %1.2e. The calculations are approximately  %2.0f percent done \n',dwTotal*ell,dd,dw(cd)*ell*1000, errornur(cd), sum(divs(1:cd))/sum(divs)*100)
+    fprintf('To transport by Delta w=%1.2f um, via %i steps of %f nm, the RMSE is about %1.2e. \nThe calculations are approximately %2.0f percent done \n',dwTotal*ell,dd,dw(cd)*ell*1000, errornur(cd), sum(divs(1:cd))/sum(divs)*100)
     %ws=[ws w+dwTotal/dd];
     
 end
