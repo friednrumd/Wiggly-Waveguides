@@ -48,9 +48,9 @@ FOMs=["nc", "Complex Index", "Real Index", "Imag Index", "Core Power", "Clad Pow
 
 
 %% Settings
-dwTotal=0.05       /ell;  %um
+dwTotal=0.050       /ell;  %um
 
-divs=flip(round(10.^(   (3:0.1:5)   )));       %orders of magnitudes of fractions of total change to compute by
+divs=flip(round(10.^(   (2:0.2:5)   )));       %orders of magnitudes of fractions of total change to compute by
 MODES=1:nmodes;
 
 
@@ -165,7 +165,7 @@ ylabel('k')
 %% Transport
 
 w0=corewidth/2;
-dw=dwTotal./(divs);
+dw=(dwTotal./(divs))';
 
 nurFinal=zeros(nmodes,nmodes,length(divs));
 errornur=zeros(length(divs),1);
@@ -183,7 +183,7 @@ for dd=divs
     nr     =zeros(nmodes,dd);
     
     nur(:,:,1)=eye(nmodes);
-    nr(:,1)    =n0;
+    nr(:,1)   =n0;
     
     cw=0;
     for w=ws
@@ -204,15 +204,19 @@ for dd=divs
         [nrk3, nurk3]=ParameterUpdateFirst(nr(:,cw)+nrk2*dw(cd)/2, nur(:,:,cw)+nurk2*dw(cd)/2, w+dw(cd)/2,Hz0+Hx0, Hy0);
         [nrk4, nurk4]=ParameterUpdateFirst(nr(:,cw)+nrk3*dw(cd)  , nur(:,:,cw)+nurk3*dw(cd)  , w+dw(cd)  ,Hz0+Hx0, Hy0);
 
-        nr(:,cw+1)=   nr(:,cw)+dw(cd)/6*( nrk1+ 2*nrk2+ 2*nrk3+ nrk4);
+        nr(:,cw+1)=      nr(:,cw)+dw(cd)/6*( nrk1 +2*nrk2 +2*nrk3+ nrk4);
         nur(:,:,cw+1)=nur(:,:,cw)+dw(cd)/6*(nurk1 +2*nurk2+2*nurk3+nurk4);
     end
-    nurFinal(:,:,cd)=nur(:,:,cw+1);
-    errornur(cd)=sqrt(sumsqr(abs(nurFinal(:,:,cd)-nurFinal(:,:,1))));
+
+    nurFinal(:,:,cd)=nur(:,:,cw);
+    nurFinalw1(cd)=w+dw(cd);
+    nurFinalw2(cd)=w;
+    q=nurFinal(:,:,cd)-nurFinal(:,:,1);
+    errornur(cd)=sqrt( trace(q'*q) );
+    clear q
 
     clc
     fprintf('To transport by Delta w=%1.2f um, via %i steps of %f nm, the RMSE is about %1.2e. \nThe calculations are approximately %2.0f percent done \n',dwTotal*ell,dd,dw(cd)*ell*1000, errornur(cd), sum(divs(1:cd))/sum(divs)*100)
-    %ws=[ws w+dwTotal/dd];
     
 end
 
@@ -220,10 +224,10 @@ end
 
 loglog(dw(1:(cd)),sqrt(4700*(dw(1:(cd))).^(2.09)),'r','LineWidth',2)
 hold on
-loglog(dw(1:(cd)),sqrt(errornur),'.b','MarkerSize',20)
-xlabel('dw (\mu m)')
+loglog(dw(1:(cd)),(errornur),'.b','MarkerSize',20)
+xlabel('dw (\mum)')
 ylabel('RMSE')
-legend('First Order Fit for \Deltaw=0.05 \mum','rk4')
+legend('First Order Fit for \Deltaw=0.05 \mum','rk4','Location','NorthWest')
 
 %end
 %% Indices Plot
