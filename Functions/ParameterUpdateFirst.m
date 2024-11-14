@@ -1,11 +1,9 @@
-function [dn,dnu] = ParameterUpdateFirst(n0, nu0, w, Hxz0, Hy0)
+function [dn,dnu] = ParameterUpdateFirst(n0, nu0, dH)
 
-
-    Hr=(nu0.')*(-w^(-2)*(Hxz0)+Hy0)*(nu0);
-    gammar=( (1-eye(length(n0)) )./(n0-n0'+100*eye(length(n0)))).*Hr;
+    Hr=(nu0.')*(dH)*(nu0);
     
     dn=diag(Hr);
-    dnu=-gammar*nu0;
+    dnu=-(( (1-eye(length(n0)) )./(n0-n0.'+100*eye(length(n0)))).*Hr)*nu0;
 
 end
 
