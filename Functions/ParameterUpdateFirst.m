@@ -1,9 +1,9 @@
-function [dn,dnu] = ParameterUpdateFirst(n0, nu0, dH)
+function [dv,dn] = ParameterUpdateFirst(v0, n0, dHr)
 
-    Hr=(nu0.')*(dH)*(nu0);
+    Hr=(v0.')*(dHr)*(v0);
     
     dn=diag(Hr);
-    dnu=-(( (1-eye(length(n0)) )./(n0-n0.'+100*eye(length(n0)))).*Hr)*nu0;
+    dv=-(( (1-eye( length(n0) ) )./(n0-n0.'+10*eye(length(n0)))).*Hr)*v0;
 
 end
 
